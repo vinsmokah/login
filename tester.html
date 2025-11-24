@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link rel="stylesheet" href="tester.css">
+</head>
+<body>
+    <!-- Login Page (Visible by default) -->
+    <div id="login-page" class="page active">
+        <div class="login-container">
+            <div class="login-card">
+                <h1>Welcome Back</h1>
+                <p>Please sign in to continue</p>
+                
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="Enter your email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password">
+                </div>
+                
+                <button class="login-btn" onclick="handleManualLogin()">Sign In</button>
+                
+                <div class="divider">
+                    <span>OR</span>
+                </div>
+                
+                <div class="social-logins">
+                    <button class="google-btn" onclick="handleGoogleLogin()">
+                        <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google Logo">
+                        Sign in with Google
+                    </button>
+                    
+                    <button class="facebook-btn" onclick="handleFacebookLogin()">
+                        <img src="https://static.xx.fbcdn.net/rsrc.php/v3/yR/r/tInzwsw2pVX.png" alt="Facebook Logo">
+                        Sign in with Facebook
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Landing Page (Hidden by default) -->
+    <div id="welcome-page" class="page hidden">
+        <nav class="navbar">
+            <div class="nav-container">
+                <h2 class="nav-logo">MyApp</h2>
+                <div class="nav-user">
+                    <img id="nav-user-pic" src="" alt="Profile" class="user-avatar">
+                    <span id="nav-user-name"></span>
+                    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="welcome-container">
+            <div class="welcome-card">
+                <div class="welcome-header">
+                    <img id="welcome-user-pic" src="" alt="Profile" class="welcome-avatar">
+                    <h1>Welcome, <span id="welcome-user-name"></span>! 👋</h1>
+                </div>
+                
+                <div class="welcome-content">
+                    <div class="welcome-message">
+                        <p class="welcome-text">We're thrilled to have you here. Your journey with us begins now!</p>
+                        <div class="login-method">
+                            <span class="method-badge" id="login-method-badge">Google</span>
+                        </div>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">🚀</div>
+                            <h3>Get Started</h3>
+                            <p>Explore all the features we have to offer and make the most of your experience.</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <div class="feature-icon">⚙️</div>
+                            <h3>Settings</h3>
+                            <p>Customize your preferences and settings to tailor the experience to your needs.</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <div class="feature-icon">📊</div>
+                            <h3>Dashboard</h3>
+                            <p>Access your personal dashboard to track your progress and activities.</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <div class="feature-icon">🔒</div>
+                            <h3>Security</h3>
+                            <p>Your account is secured with the latest security measures.</p>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions">
+                        <h3>Quick Actions</h3>
+                        <div class="action-buttons">
+                            <button class="action-btn primary" onclick="showNotification('Profile updated!')">
+                                Edit Profile
+                            </button>
+                            <button class="action-btn secondary" onclick="showNotification('Settings saved!')">
+                                Settings
+                            </button>
+                            <button class="action-btn tertiary" onclick="showNotification('Exploring dashboard...')">
+                                View Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+        <p>Signing you in...</p>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="tester.js"></script>
+</body>
+</html>
