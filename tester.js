@@ -1,350 +1,280 @@
-// Configuration
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-const FACEBOOK_APP_ID = 'YOUR_FACEBOOK_APP_ID';
+// Simple authentication JavaScript - easy to understand!
 
-let currentUser = null;
-let googleTokenClient;
+// Store users in localStorage (for demo purposes)
+function getUsers() {
+  const users = localStorage.getItem('users');
+  if (!users) return {};
 
-// Initialize authentication services
-function initializeAuth() {
-    initializeGoogleAuth();
-    initializeFacebookSDK();
-    
-    // Check if user was previously logged in
-    checkExistingSession();
-}
-
-// Google OAuth Initialization
-function initializeGoogleAuth() {
-    if (typeof google !== 'undefined') {
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true
-        });
+  // Parse and normalize keys to lowercase (handles older saved entries)
+  try {
+    const parsed = JSON.parse(users);
+    const normalized = {};
+    let changed = false;
+    for (const k in parsed) {
+      const user = parsed[k] || {};
+      const keyLower = (user.email || k).toLowerCase();
+      user.email = keyLower;
+      normalized[keyLower] = user;
+      if (keyLower !== k) changed = true;
     }
-}
-
-// Facebook SDK Initialization
-function initializeFacebookSDK() {
-    window.fbAsyncInit = function() {
-        FB.init({
-            appId: FACEBOOK_APP_ID,
-            cookie: true,
-            xfbml: true,
-            version: 'v18.0'
-        });
-        
-        // Check Facebook login status after SDK loads
-        FB.getLoginStatus(function(response) {
-            if (response.status === 'connected') {
-                // User is logged in with Facebook
-                fetchFacebookUserInfo();
-            }
-        });
-    };
-
-    // Load Facebook SDK
-    (function(d, s, id) {
-        var js, fjs = d.getElementsByTagName(s)[0];
-        if (d.getElementById(id)) return;
-        js = d.createElement(s); js.id = id;
-        js.src = "https://connect.facebook.net/en_US/sdk.js";
-        fjs.parentNode.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
-}
-
-// Handle Google OAuth Response
-function handleGoogleResponse(response) {
-    showLoading(true);
-    
-    try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        
-        currentUser = {
-            name: payload.name,
-            email: payload.email,
-            picture: payload.picture,
-            loginMethod: 'Google'
-        };
-        
-        // Save to localStorage to persist session
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        showWelcomePage();
-        showNotification(`Welcome back, ${payload.name}!`, 'success');
-        
-    } catch (error) {
-        console.error('Google login error:', error);
-        showNotification('Google login failed. Please try again.', 'error');
-    } finally {
-        showLoading(false);
+    if (changed) {
+      localStorage.setItem('users', JSON.stringify(normalized));
     }
+    return normalized;
+  } catch (err) {
+    // Malformed data - clear it
+    localStorage.removeItem('users');
+    return {};
+  }
 }
 
-// Handle Google Login
-function handleGoogleLogin() {
-    showLoading(true);
-    
-    googleTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-        callback: (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-                fetchGoogleUserInfo(tokenResponse.access_token);
-            } else {
-                showLoading(false);
-                showNotification('Google login cancelled.', 'error');
-            }
-        },
-    });
-    googleTokenClient.requestAccessToken();
+function saveUser(user) {
+  const users = getUsers();
+  // Ensure email key is normalized to lowercase
+  const emailKey = (user.email || '').toLowerCase();
+  user.email = emailKey;
+  users[emailKey] = user;
+  localStorage.setItem('users', JSON.stringify(users));
 }
 
-// Fetch Google User Info
-function fetchGoogleUserInfo(accessToken) {
-    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    })
-    .then(response => response.json())
-    .then(userInfo => {
-        currentUser = {
-            name: userInfo.name,
-            email: userInfo.email,
-            picture: userInfo.picture,
-            loginMethod: 'Google'
-        };
-        
-        // Save to localStorage
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        showWelcomePage();
-        showNotification('Google login successful!', 'success');
-    })
-    .catch(error => {
-        console.error('Error fetching Google user info:', error);
-        showNotification('Google login failed.', 'error');
-    })
-    .finally(() => {
-        showLoading(false);
-    });
+// Switch between views (signin, signup, forgot)
+function switchView(viewName) {
+  // Hide all views
+  const views = document.querySelectorAll('.view');
+  views.forEach(view => view.classList.remove('active'));
+  
+  // Show the selected view
+  const targetView = document.getElementById(viewName + 'View');
+  if (targetView) {
+    targetView.classList.add('active');
+  }
+  
+  // Clear any error messages
+  clearErrors();
 }
 
-// Handle Facebook Login
-function handleFacebookLogin() {
-    showLoading(true);
-    
-    FB.login(function(response) {
-        if (response.authResponse) {
-            // User granted permissions
-            fetchFacebookUserInfo();
-        } else {
-            // User cancelled login or did not fully authorize
-            showLoading(false);
-            showNotification('Facebook login cancelled.', 'error');
-        }
-    }, { scope: 'public_profile,email' });
+// Show toast notification
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
 }
 
-// Fetch Facebook User Info
-function fetchFacebookUserInfo() {
-    FB.api('/me', { fields: 'name,email,picture' }, function(userInfo) {
-        currentUser = {
-            name: userInfo.name,
-            email: userInfo.email,
-            picture: userInfo.picture?.data?.url || '',
-            loginMethod: 'Facebook'
-        };
-        
-        // Save to localStorage
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        showWelcomePage();
-        showNotification('Facebook login successful!', 'success');
-        showLoading(false);
-    });
+// Clear all error messages
+function clearErrors() {
+  const errorTexts = document.querySelectorAll('.error-text');
+  errorTexts.forEach(error => error.textContent = '');
+  
+  const errorBox = document.getElementById('errorBox');
+  if (errorBox) errorBox.style.display = 'none';
 }
 
-// Handle Manual Login (Demo)
-function handleManualLogin() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    if (!email || !password) {
-        showNotification('Please fill in all fields', 'error');
-        return;
-    }
-    
-    showLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-        currentUser = {
-            name: email.split('@')[0],
-            email: email,
-            picture: '',
-            loginMethod: 'Email'
-        };
-        
-        // Save to localStorage
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        showWelcomePage();
-        showNotification('Login successful!', 'success');
-        showLoading(false);
-    }, 1500);
+// Validate email format
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
-// Show Welcome Page (Only after successful login)
-function showWelcomePage() {
-    if (!currentUser) {
-        console.error('No user data available');
-        return;
-    }
-    
-    // Update user info in welcome page
-    document.getElementById('welcome-user-name').textContent = currentUser.name;
-    document.getElementById('nav-user-name').textContent = currentUser.name;
-    
-    if (currentUser.picture) {
-        document.getElementById('welcome-user-pic').src = currentUser.picture;
-        document.getElementById('nav-user-pic').src = currentUser.picture;
+// SIGN IN FORM
+document.getElementById('signinForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  clearErrors();
+  
+  const emailRaw = document.getElementById('signinEmail').value.trim();
+  const email = emailRaw.toLowerCase();
+  const password = document.getElementById('signinPassword').value;
+  const remember = document.getElementById('rememberMe').checked;
+  
+  // Validate inputs
+  if (!email || !password) {
+    showToast('Please fill in all fields');
+    return;
+  }
+  
+  if (!isValidEmail(email)) {
+    showToast('Please enter a valid email');
+    return;
+  }
+  
+  // Check if user exists and password matches
+  const users = getUsers();
+  const user = users[email];
+  
+  if (user && user.password === password) {
+    // Save to localStorage if remember me is checked
+    if (remember) {
+      localStorage.setItem('rememberedEmail', email);
     } else {
-        // Use default avatar if no picture
-        const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=4285f4&color=fff`;
-        document.getElementById('welcome-user-pic').src = defaultAvatar;
-        document.getElementById('nav-user-pic').src = defaultAvatar;
+      localStorage.removeItem('rememberedEmail');
     }
     
-    document.getElementById('login-method-badge').textContent = currentUser.loginMethod;
+    // Save current user session
+    localStorage.setItem('currentUser', JSON.stringify(user));
     
-    // Switch pages - hide login, show welcome
-    document.getElementById('login-page').classList.remove('active');
-    document.getElementById('login-page').classList.add('hidden');
+    showToast('Signed in successfully!');
     
-    document.getElementById('welcome-page').classList.remove('hidden');
-    document.getElementById('welcome-page').classList.add('active');
-    
-    // Update page title
-    document.title = `Welcome ${currentUser.name} - MyApp`;
-}
-
-// Handle Logout
-function handleLogout() {
-    // Clear user data
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-    
-    // Clear form fields
-    document.getElementById('email').value = '';
-    document.getElementById('password').value = '';
-    
-    // Switch back to login page
-    document.getElementById('welcome-page').classList.remove('active');
-    document.getElementById('welcome-page').classList.add('hidden');
-    
-    document.getElementById('login-page').classList.remove('hidden');
-    document.getElementById('login-page').classList.add('active');
-    
-    // Reset page title
-    document.title = 'Login Page';
-    
-    // Revoke Google token if exists
-    if (googleTokenClient) {
-        google.accounts.oauth2.revoke('', () => {
-            console.log('Google token revoked');
-        });
-    }
-    
-    // Facebook logout
-    if (typeof FB !== 'undefined') {
-        FB.logout(function(response) {
-            console.log('Facebook logout successful');
-        });
-    }
-    
-    showNotification('Logged out successfully', 'success');
-}
-
-// Check if user is already logged in (on page load)
-function checkExistingSession() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        try {
-            currentUser = JSON.parse(savedUser);
-            showWelcomePage();
-            console.log('User automatically logged in from session');
-        } catch (error) {
-            console.error('Error parsing saved user data:', error);
-            localStorage.removeItem('currentUser');
-        }
-    }
-}
-
-// Show Loading Spinner
-function showLoading(show) {
-    const spinner = document.getElementById('loading-spinner');
-    if (show) {
-        spinner.classList.remove('hidden');
-    } else {
-        spinner.classList.add('hidden');
-    }
-}
-
-// Show Notification
-function showNotification(message, type) {
-    // Remove existing messages
-    const existingMessages = document.querySelectorAll('.message');
-    existingMessages.forEach(msg => msg.remove());
-    
-    // Create new message
-    const messageEl = document.createElement('div');
-    messageEl.className = `message ${type}`;
-    messageEl.textContent = message;
-    
-    // Insert in current active page
-    const currentPage = document.querySelector('.page.active');
-    if (currentPage.id === 'login-page') {
-        const loginCard = currentPage.querySelector('.login-card');
-        loginCard.insertBefore(messageEl, loginCard.querySelector('.form-group'));
-    } else {
-        const welcomeCard = currentPage.querySelector('.welcome-card');
-        const welcomeContent = welcomeCard.querySelector('.welcome-content');
-        welcomeCard.insertBefore(messageEl, welcomeContent);
-    }
-    
-    // Auto remove after 5 seconds
+    // Redirect to welcome page
     setTimeout(() => {
-        if (messageEl.parentNode) {
-            messageEl.remove();
-        }
-    }, 5000);
+      window.location.href = 'welcome.html';
+    }, 500);
+  } else {
+    // Show error
+    const errorBox = document.getElementById('errorBox');
+    if (errorBox) errorBox.style.display = 'flex';
+  }
+});
+
+// SIGN UP FORM
+document.getElementById('signupForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  clearErrors();
+  
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName = document.getElementById('lastName').value.trim();
+  const emailRaw = document.getElementById('signupEmail').value.trim();
+  const email = emailRaw.toLowerCase();
+  const password = document.getElementById('signupPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  let hasError = false;
+  
+  // Validate first name
+  if (!firstName) {
+    document.getElementById('errorFirstName').textContent = 'First name is required';
+    hasError = true;
+  }
+  
+  // Validate last name
+  if (!lastName) {
+    document.getElementById('errorLastName').textContent = 'Last name is required';
+    hasError = true;
+  }
+  
+  // Validate email
+  if (!email) {
+    document.getElementById('errorEmail').textContent = 'Email is required';
+    hasError = true;
+  } else if (!isValidEmail(email)) {
+    document.getElementById('errorEmail').textContent = 'Please enter a valid email';
+    hasError = true;
+  }
+  
+  // Validate password
+  if (password.length < 6) {
+    document.getElementById('errorPassword').textContent = 'Password must be at least 6 characters';
+    hasError = true;
+  }
+  
+  // Validate confirm password
+  if (password !== confirmPassword) {
+    document.getElementById('errorConfirm').textContent = 'Passwords do not match';
+    hasError = true;
+  }
+  
+  if (hasError) return;
+  
+  // Check if email already exists (case-insensitive)
+  const users = getUsers();
+  if (users[email]) {
+    document.getElementById('errorEmail').textContent = 'This email is already registered';
+    return;
+  }
+  
+  // Create new user (normalize email)
+  const newUser = {
+    firstName: firstName,
+    lastName: lastName,
+    email: email,
+    password: password
+  };
+  
+  saveUser(newUser);
+  
+  // Save current user session
+  localStorage.setItem('currentUser', JSON.stringify(newUser));
+  
+  showToast('Account created successfully! You can now sign in.');
+  
+  // After successful sign up, switch back to sign in view and pre-fill the email
+  setTimeout(() => {
+    switchView('signin');
+    document.getElementById('signinEmail').value = newUser.email;
+    document.getElementById('signinPassword').value = '';
+  }, 800);
+});
+
+// FORGOT PASSWORD FORM
+document.getElementById('forgotForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  clearErrors();
+  
+  const emailRaw = document.getElementById('forgotEmail').value.trim();
+  const email = emailRaw.toLowerCase();
+  
+  if (!email) {
+    document.getElementById('errorForgot').textContent = 'Please enter your email';
+    return;
+  }
+  
+  if (!isValidEmail(email)) {
+    document.getElementById('errorForgot').textContent = 'Please enter a valid email';
+    return;
+  }
+  
+  showToast('Password reset instructions sent to your email!');
+  
+  // Switch to sign in after 1.5 seconds
+  setTimeout(() => {
+    switchView('signin');
+    // Pre-fill email
+    document.getElementById('signinEmail').value = email;
+  }, 1500);
+});
+
+// Social login (functional - redirects to welcome page)
+function socialLogin(provider) {
+  // Create a user session for social login
+  const socialUser = {
+    firstName: provider,
+    lastName: 'User',
+    email: provider.toLowerCase() + '@example.com',
+    password: 'social-login-' + Date.now()
+  };
+  
+  saveUser(socialUser);
+  
+  // Save current user session
+  localStorage.setItem('currentUser', JSON.stringify(socialUser));
+  
+  showToast('Signed in with ' + provider + '!');
+  
+  // Redirect to welcome page
+  setTimeout(() => {
+    window.location.href = 'welcome.html';
+  }, 800);
 }
 
-// Demo function for action buttons
-function showNotification(message) {
-    // Create a simple toast notification
-    const toast = document.createElement('div');
-    toast.className = 'message success';
-    toast.textContent = message;
-    toast.style.position = 'fixed';
-    toast.style.top = '20px';
-    toast.style.right = '20px';
-    toast.style.zIndex = '1000';
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.remove();
-        }
-    }, 3000);
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeAuth();
+// Load remembered email and create demo account on page load
+window.addEventListener('load', function() {
+  // Create demo account if it doesn't exist
+  const users = getUsers();
+  if (!users['demo@example.com']) {
+    saveUser({
+      firstName: 'Demo',
+      lastName: 'User',
+      email: 'demo@example.com',
+      password: 'demo123'
+    });
+  }
+  
+  // Load remembered email
+  const rememberedEmail = localStorage.getItem('rememberedEmail');
+  if (rememberedEmail) {
+    document.getElementById('signinEmail').value = rememberedEmail;
+    document.getElementById('rememberMe').checked = true;
+  }
 });
